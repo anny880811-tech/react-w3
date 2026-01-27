@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import axios from 'axios';
 import * as bootstrap from "bootstrap";
+import ProductModal from './component/ProductModal';
+import Pagination from './component/Pagination';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 const API_PATH = import.meta.env.VITE_API_PATH;
@@ -22,15 +22,18 @@ const INITIAL_TEMPLATE_DATA = {
 //const { VITE_API_BASE, VITE_API_PATH } = import.meta.env;
 
 
+
 function App() {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   })
+
   const [isAuth, setIsAuth] = useState(false);
   const [products, setProducts] = useState([]);
   const [templateProduct, setTemplateProduct] = useState(INITIAL_TEMPLATE_DATA);
   const [modalType, setModalType] = useState('');
+  const [pagination, setpagination] = useState({});
   const productModalRef = useRef(null);
 
   const signIn = async () => {
@@ -73,7 +76,6 @@ function App() {
     })
   }
 
-
   const handleAddImage = () => {
     setTemplateProduct((pre) => {
       return {
@@ -94,12 +96,34 @@ function App() {
     })
   }
 
-  const getproducts = async () => {
+  const getproducts = async (page = 1) => {
     try {
-      const res = await axios.get(`${API_BASE}/api/${API_PATH}/admin/products`)
+      const res = await axios.get(`${API_BASE}/api/${API_PATH}/admin/products?page=${page}`)
       setProducts(res.data.products);
+      setpagination(res.data.pagination)
     } catch (error) {
       console.log(error.response.data.message);
+    }
+  }
+
+  const uploadImage = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) {
+      return
+    }
+    try {
+      const formData = new FormData()
+      formData.append('file-to-upload', file)
+
+      const response = await axios.post(`${API_BASE}/api/${API_PATH}/admin/upload`, formData)
+
+      setTemplateProduct((pre) => ({
+        ...pre,
+        imageUrl: response.data.imageUrl,
+      }))
+
+    } catch (error) {
+      console.log(error.response)
     }
   }
 
@@ -278,7 +302,7 @@ function App() {
           <div className="col-md-6">
 
           </div>
-           {/* <div className="col-md-6">
+          {/* <div className="col-md-6">
             <h2>商品明細</h2>
             {templateProduct ? <div className="card">
               <img src={templateProduct.imageUrl} className="card-img-top" alt="商品圖片" />
@@ -298,80 +322,24 @@ function App() {
             </div> : '請點選商品以查看更多'}
           </div>  */}
         </div>
+        <Pagination pagination={pagination} onChangePage={getproducts} />
       </div>}
 
-      <div className="modal fade" id="productModal" tabIndex="-1" aria-labelledby="productModalLabel" aria-hidden="true" ref={productModalRef}>
-        <div className="modal-dialog modal-xl">
-          <div className="modal-content">
-            <div className={`modal-header ${modalType === 'delete' ? 'bg-danger' : 'bg-dark'} text-white btn-close-white`}>
-              <h5 className="modal-title" id="productModalLabel">{modalType === 'delete' ? '刪除產品' : modalType === 'edit' ?
-                '編輯產品' : '新增產品'}</h5>
-              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div className="modal-body">{modalType === 'delete' ? (<p className="fs-4">確定要刪除
-              <span className="text-danger">{templateProduct.title}</span>嗎?
-            </p>) : (<div className="container">
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <div>
-                    <label htmlFor="imageUrl" style={labelStyle}>主圖網址</label>
-                    <input type="text" id='imageUrl' placeholder='請輸入圖片網址' name='imageUrl' value={templateProduct.imageUrl} style={inputStyle1} onChange={(e) => handleModalChange(e)} />
-                    {templateProduct.imageUrl && (<img className='img-fluid' src={templateProduct.imageUrl} alt="主圖" style={{ marginBottom: '10px', }} />)}
-                  </div>
-
-                  {templateProduct.imagesUrl.map((url, index) => {
-                    return <div key={index}>
-                      <label htmlFor="imagesUrl" style={labelStyle}>更多圖片網址</label>
-                      <input type="text" id='imagesUrl' placeholder={`請輸入圖片網址${index + 1}`} name='imagesUrl' value={url} style={inputStyle1} onChange={(e) => handleModalImageChange(index, e.target.value)} />
-                      {url && <img className='img-fluid' src={url} alt={`副圖${index + 1}`} style={{ marginBottom: '10px', }} />}
-                    </div>
-                  })}
-                  <div>
-                    <button type="button" className="btn btn-outline-primary btn-sm" style={{ marginBottom: '10px', width: '100%' }} onClick={handleAddImage}>新增圖片</button>
-                    <button type="button" className="btn btn-outline-danger btn-sm" style={{ width: '100%' }} onClick={handleRemoveImage}>刪除圖片</button>
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div>
-                    <label htmlFor="title" style={labelStyle}>標題</label>
-                    <input type="text" id='title' placeholder='請輸入標題' name='title' value={templateProduct.title} style={inputStyle1} onChange={handleModalChange} />
-                  </div>
-                  <div>
-                    <label htmlFor="content" style={labelStyle}>內容</label>
-                    <input type="text" id='content' placeholder='請輸入內容' name='content' value={templateProduct.content} style={inputStyle1} onChange={handleModalChange} />
-                  </div>
-                  <div>
-                    <label htmlFor="category" style={labelStyle}>分類</label>
-                    <input type="text" id='category' placeholder='請輸入分類' name='category' value={templateProduct.category} style={{ ...inputStyle2, marginRight: '25px' }} onChange={handleModalChange} />
-                    <label htmlFor="unit" style={labelStyle}>單位</label>
-                    <input type="text" id='unit' placeholder='請輸入單位' name='unit' value={templateProduct.unit} style={inputStyle2} onChange={handleModalChange} /></div>
-                  <div>
-                    <label htmlFor="origin_price" style={labelStyle}>原價</label>
-                    <input type="text" id='origin_price' placeholder='請輸入原價' name='origin_price' value={templateProduct.origin_price} style={{ ...inputStyle2, marginRight: '25px' }} onChange={handleModalChange} />
-                    <label htmlFor="price" style={labelStyle}>售價</label>
-                    <input type="text" id='price' placeholder='請輸入售價' name='price' value={templateProduct.price} style={inputStyle2} onChange={handleModalChange} />
-                  </div>
-                  <div className="form-check">
-                    <input className="form-check-input" type="checkbox" value="" name='is_enabled' id="courseCheck1" checked={templateProduct.is_enabled} onChange={handleModalChange} />
-                    <label className="form-check-label" htmlFor="courseCheck1" >
-                      是否啟用
-                    </label>
-                  </div>
-                  <div>
-                  </div>
-                </div>
-              </div>
-            </div>)}
-
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" data-bs-dismiss="modal" onClick={() => { closeModal() }}>取消</button>
-              <button type="button" className="btn btn-outline-primary" onClick={() => updateProduct(templateProduct.id)}>確認</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <ProductModal
+        templateProduct={templateProduct}
+        modalType={modalType}
+        onCloseModal={closeModal}
+        onUpdateProduct={updateProduct}
+        onChange={handleModalChange}
+        onImageChange={handleModalImageChange}
+        onAddImage={handleAddImage}
+        onRemoveImage={handleRemoveImage}
+        productModalRef={productModalRef}
+        labelStyle={labelStyle}
+        inputStyle1={inputStyle1}
+        inputStyle2={inputStyle2}
+        uploadImage={uploadImage}
+      />
     </>
   )
 }
